@@ -3,23 +3,14 @@ import time
 from datetime import datetime
 import requests
 import os
+from pytz import timezone, all_timezones
+from dotenv import load_dotenv
 
-print("Current Working Directory:", os.getcwd())
-
-# --- Load environment variables safely ---
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    print(".env loaded")
-except Exception as e:
-    print(f"dotenv load failed: {e}")
-
+# --- Load .env ---
+load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
-print(f"API Key Loaded: {api_key}")
 
-
-# --- Theme Color Presets ---
+# --- Theme Presets ---
 theme_colors = {
     "Retro": {"bg": "#1a1a1a", "fg": "#00FF00"},
     "Neon": {"bg": "#000000", "fg": "#FF00FF"},
@@ -36,7 +27,7 @@ theme_colors = {
     "Candy": {"bg": "#FF69B4", "fg": "#FFFFFF"},
 }
 
-# --- Settings ---
+# --- Page Config ---
 st.set_page_config(
     layout="wide",
     page_title="Digital Clock",
@@ -44,14 +35,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Sidebar options ---
+# --- Sidebar Settings ---
 format_12h = st.sidebar.checkbox("12-Hour Format (No AM/PM)", value=True)
 theme = st.sidebar.selectbox("Theme", list(theme_colors.keys()))
 show_date = st.sidebar.checkbox("Show Date", value=True)
 show_weather = st.sidebar.checkbox("Show Weather", value=True)
 city = st.sidebar.text_input("City for Weather", "Bangalore")
+timezone_list = sorted([tz for tz in all_timezones if "/" in tz])
+user_timezone = st.sidebar.selectbox(
+    "Select Timezone", timezone_list, index=timezone_list.index("Asia/Kolkata")
+)
 
-# --- Weather API ---
+# --- Weather Data ---
 weather_data = None
 if api_key and show_weather:
     try:
@@ -60,22 +55,24 @@ if api_key and show_weather:
         if response.status_code == 200:
             data = response.json()
             weather_data = f"{city}: {data['main']['temp']} °C, {data['weather'][0]['description'].title()}"
+        else:
+            weather_data = "Weather data unavailable"
     except:
-        weather_data = "Weather data unavailable"
+        weather_data = "Weather fetch failed"
 elif not api_key and show_weather:
     weather_data = "API key not set"
 
-# --- CSS for theme and fullscreen ---
+# --- Theme CSS ---
 colors = theme_colors[theme]
 st.markdown(
     f"""
     <style>
-    html, body, [class*="css"]  {{
+    html, body, [class*="css"] {{
         margin: 0;
         padding: 0;
-        overflow: hidden;
         background-color: {colors['bg']};
         color: {colors['fg']};
+        overflow: hidden;
     }}
     .clock {{
         font-size: 18vw;
@@ -96,15 +93,16 @@ st.markdown(
             if (el.requestFullscreen) el.requestFullscreen();
         }});
     </script>
-""",
+    """,
     unsafe_allow_html=True,
 )
 
 # --- Live Clock Loop ---
 placeholder = st.empty()
+tz = timezone(user_timezone)
 
 while True:
-    now = datetime.now()
+    now = datetime.now(tz)
     time_str = now.strftime("%I:%M:%S") if format_12h else now.strftime("%H:%M:%S")
     date_str = now.strftime("%A, %d %B %Y")
 
