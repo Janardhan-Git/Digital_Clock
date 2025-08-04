@@ -6,11 +6,11 @@ import os
 from pytz import timezone, all_timezones
 from dotenv import load_dotenv
 
-# --- Load .env ---
+# Load .env
 load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
 
-# --- Theme Presets ---
+# Theme Presets
 theme_colors = {
     "Retro": {"bg": "#1a1a1a", "fg": "#00FF00"},
     "Neon": {"bg": "#000000", "fg": "#FF00FF"},
@@ -27,77 +27,109 @@ theme_colors = {
     "Candy": {"bg": "#FF69B4", "fg": "#FFFFFF"},
 }
 
-# --- Page Config ---
+# Streamlit Config
 st.set_page_config(
     layout="wide",
-    page_title="Digital Clock",
+    page_title="Wall Clock",
     page_icon="🕒",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# --- Sidebar Settings ---
-format_12h = st.sidebar.checkbox("12-Hour Format (No AM/PM)", value=True)
-theme = st.sidebar.selectbox("Theme", list(theme_colors.keys()))
-show_date = st.sidebar.checkbox("Show Date", value=True)
-show_weather = st.sidebar.checkbox("Show Weather", value=True)
-city = st.sidebar.text_input("City for Weather", "Bangalore")
-timezone_list = sorted([tz for tz in all_timezones if "/" in tz])
-user_timezone = st.sidebar.selectbox(
-    "Select Timezone", timezone_list, index=timezone_list.index("Asia/Kolkata")
-)
+# Sidebar
+with st.sidebar:
+    st.title("⏱ Settings")
+    format_12h = st.checkbox("12-Hour Format", True)
+    theme = st.selectbox("Theme", list(theme_colors.keys()))
+    show_date = st.checkbox("Show Date", True)
+    show_weather = st.checkbox("Show Weather", True)
+    city = st.text_input("Weather City", "Bangalore")
+    timezone_list = sorted([tz for tz in all_timezones if "/" in tz])
+    user_timezone = st.selectbox(
+        "Timezone", timezone_list, index=timezone_list.index("Asia/Kolkata")
+    )
 
-# --- Weather Data ---
-weather_data = None
-if api_key and show_weather:
+# Weather API
+weather_data = ""
+if show_weather and api_key:
     try:
         weather_url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-        response = requests.get(weather_url, timeout=2)
-        if response.status_code == 200:
-            data = response.json()
-            weather_data = f"{city}: {data['main']['temp']} °C, {data['weather'][0]['description'].title()}"
+        res = requests.get(weather_url, timeout=2)
+        if res.ok:
+            data = res.json()
+            weather_data = (
+                f"{data['main']['temp']}°C, {data['weather'][0]['description'].title()}"
+            )
         else:
-            weather_data = "Weather data unavailable"
+            weather_data = "Weather unavailable"
     except:
-        weather_data = "Weather fetch failed"
-elif not api_key and show_weather:
-    weather_data = "API key not set"
+        weather_data = "Weather error"
 
-# --- Theme CSS ---
+# Theme
 colors = theme_colors[theme]
+
+# Inject CSS for fullscreen mobile layout
 st.markdown(
     f"""
     <style>
     html, body, [class*="css"] {{
-        margin: 0;
-        padding: 0;
         background-color: {colors['bg']};
         color: {colors['fg']};
+        height: 100%;
+        margin: 0;
         overflow: hidden;
     }}
     .clock {{
-        font-size: 18vw;
-        text-align: center;
+        font-size: 20vw;
         font-weight: bold;
-        margin-top: 10vh;
-        color: {colors['fg']};
-    }}
-    .sub {{
-        font-size: 4vw;
         text-align: center;
         color: {colors['fg']};
+        margin-top: 10vh;
+    }}
+    .date {{
+        font-size: 6vw;
+        text-align: center;
+        color: {colors['fg']};
+        margin-top: 2vh;
+    }}
+    .weather {{
+        font-size: 5vw;
+        text-align: center;
+        color: {colors['fg']};
+        margin-top: 2vh;
     }}
     </style>
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {{
-            const el = document.documentElement;
-            if (el.requestFullscreen) el.requestFullscreen();
-        }});
-    </script>
     """,
     unsafe_allow_html=True,
 )
 
-# --- Live Clock Loop ---
+# Fullscreen + Prevent Sleep on Mobile (inject JS)
+from streamlit.components.v1 import html
+
+html(
+    """
+<script>
+document.addEventListener('click', () => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+});
+let noSleep = null;
+window.addEventListener('click', function enableNoSleep() {
+    if (!noSleep) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/no-sleep/0.12.0/NoSleep.min.js';
+        script.onload = () => {
+            noSleep = new NoSleep();
+            noSleep.enable();
+        };
+        document.body.appendChild(script);
+    }
+}, { once: true });
+</script>
+""",
+    height=0,
+)
+
+# Main Loop
 placeholder = st.empty()
 tz = timezone(user_timezone)
 
@@ -109,10 +141,10 @@ while True:
     with placeholder.container():
         st.markdown(f'<div class="clock">{time_str}</div>', unsafe_allow_html=True)
         if show_date:
-            st.markdown(f'<div class="sub">{date_str}</div>', unsafe_allow_html=True)
-        if show_weather and weather_data:
+            st.markdown(f'<div class="date">{date_str}</div>', unsafe_allow_html=True)
+        if show_weather:
             st.markdown(
-                f'<div class="sub">{weather_data}</div>', unsafe_allow_html=True
+                f'<div class="weather">{city}: {weather_data}</div>',
+                unsafe_allow_html=True,
             )
-
     time.sleep(1)
