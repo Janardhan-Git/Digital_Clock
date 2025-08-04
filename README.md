@@ -4,7 +4,7 @@ Transform any device into a full-screen digital wall clock with beautiful themes
 
 ### 🖼️ Preview
 
-![Screenshot 1](assets/Screenshot.png)
+![Screenshot](assets/Screenshot.png)
 ![Screenshot 2](assets/Screenshot1.png)
 ![Screenshot 3](assets/screenshot2.png)
 
