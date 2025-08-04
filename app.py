@@ -148,3 +148,6 @@ while True:
                 unsafe_allow_html=True,
             )
     time.sleep(1)
+
+st.markdown("---")
+st.caption("🔊 Built with ❤️ by Jana using Edge-TTS and Streamlit")
